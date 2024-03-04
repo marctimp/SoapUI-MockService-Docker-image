@@ -2,10 +2,11 @@
 # Create an extensible SoapUI mock service runner image using CentOS
 #######################################################################
 
-# Use the openjdk 8 base image
-FROM openjdk:8
+# Use the latest openjdk 8 base image - MT was unmaintained deprecated openjdk 8
+FROM eclipse-temurin:21-jre-jammy
+# FROM openjdk:8
 
-MAINTAINER fbascheper <temp01@fam-scheper.nl>
+# MAINTAINER fbascheper <temp01@fam-scheper.nl>
 
 ##########################################################
 # Download and unpack soapui
@@ -13,20 +14,26 @@ MAINTAINER fbascheper <temp01@fam-scheper.nl>
 
 RUN groupadd -r -g 1000 soapui && useradd -r -u 1000 -g soapui -m -d /home/soapui soapui
 
-RUN curl -kLO https://s3.amazonaws.com/downloads.eviware/soapuios/5.4.0/SoapUI-5.4.0-linux-bin.tar.gz && \
-    echo "151ebe65215b19898e31ccbf5d5ad68b SoapUI-5.4.0-linux-bin.tar.gz" >> MD5SUM && \
-    md5sum -c MD5SUM && \
-    tar -xzf SoapUI-5.4.0-linux-bin.tar.gz -C /home/soapui && \
-    rm -f SoapUI-5.4.0-linux-bin.tar.gz MD5SUM
+# RUN curl -kLO https://s3.amazonaws.com/downloads.eviware/soapuios/5.4.0/SoapUI-5.4.0-linux-bin.tar.gz && \
+#     echo "151ebe65215b19898e31ccbf5d5ad68b SoapUI-5.4.0-linux-bin.tar.gz" >> MD5SUM && \
+#     md5sum -c MD5SUM && \
+#     tar -xzf SoapUI-5.4.0-linux-bin.tar.gz -C /home/soapui && \
+#     rm -f SoapUI-5.4.0-linux-bin.tar.gz MD5SUM
+
+RUN curl -LO https://s3.amazonaws.com/downloads.eviware/soapuios/5.7.0/SoapUI-5.7.0-linux-bin.tar.gz && \
+    tar -xzf SoapUI-5.7.0-linux-bin.tar.gz -C /home/soapui && \
+    rm -f SoapUI-5.7.0-linux-bin.tar.gz MD5SUM
 
 RUN chown -R soapui:soapui /home/soapui
 RUN find /home/soapui -type d -execdir chmod 770 {} \;
 RUN find /home/soapui -type f -execdir chmod 660 {} \;
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        cron \
-        gosu \
+RUN apt update \
+    && apt upgrade -y \
+    && apt autoremove \
+    && apt install -y --no-install-recommends \
+    cron \
+    gosu \
     && rm -rf /var/lib/apt/lists/*
 
 ############################################
@@ -35,7 +42,7 @@ RUN apt-get update \
 
 USER soapui
 ENV HOME /home/soapui
-ENV SOAPUI_DIR /home/soapui/SoapUI-5.4.0
+ENV SOAPUI_DIR /home/soapui/SoapUI-5.7.0
 ENV SOAPUI_PRJ /home/soapui/soapui-prj
 
 ############################################
@@ -53,12 +60,11 @@ EXPOSE 8080
 
 COPY docker-entrypoint.sh /
 RUN chmod 700 /docker-entrypoint.sh
-RUN chmod 770 $SOAPUI_DIR/bin/*.sh
+RUN chmod 770 "$SOAPUI_DIR"/bin/*.sh
 
-RUN chown -R soapui:soapui $SOAPUI_PRJ
-RUN find $SOAPUI_PRJ -type d -execdir chmod 770 {} \;
-RUN find $SOAPUI_PRJ -type f -execdir chmod 660 {} \;
-
+RUN chown -R soapui:soapui "$SOAPUI_PRJ"
+RUN find "$SOAPUI_PRJ" -type d -execdir chmod 770 {} \;
+RUN find "$SOAPUI_PRJ" -type f -execdir chmod 660 {} \;
 
 ############################################
 # Start SoapUI mock service runner
